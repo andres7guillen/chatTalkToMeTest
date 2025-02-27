@@ -1,0 +1,87 @@
+<div class="container">
+    <form autocomplete="off" [formGroup]="formulario" (ngSubmit)="getRanking()">
+        <div class="form-group">
+            <label>Neighborhood:</label>
+            <select formControlName="neighborhood" class="form-control">
+                <option *ngFor="let neighborhood of neighborhoods" [value]="neighborhood">
+                    {{neighborhood}}
+                </option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>Locality:</label>
+            <select formControlName="locality" class="form-control">
+                <option *ngFor="let locality of localities" [value]="locality">
+                    {{locality}}
+                </option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>City:</label>
+            <select formControlName="city" class="form-control">
+                <option *ngFor="let city of cities" [value]="city">
+                    {{city}}
+                </option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>Country:</label>
+            <select formControlName="country" class="form-control">
+                <option *ngFor="let country of countries" [value]="country">
+                    {{country}}
+                </option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>Init Date:</label>
+            <input formControlName="initDate" type="date">
+        </div>
+
+        <div class="form-group">
+            <label>End Date:</label>
+            <input formControlName="endDate" type="date">
+        </div>
+
+        <div class="form-group">
+            <label>Take items:</label>
+            <input formControlName="takeItemsList" type="number">
+            <small *ngIf="takeItemsListNoValid" class="text-danger">Min number = 5 and max number = 50 </small>
+        </div>
+
+        <div class="form-group text-center">
+            <button type="submit" class="btn btn-primary w-25">
+                <i class="fa fa-save"></i>
+                Get ranking
+            </button>
+        </div>
+    </form>
+
+    <div *ngIf="showrankingResult">
+        <div class="form-group">
+            <label>Posiition:</label>
+            <h6>{{rankingResultModel.position}}</h6>
+
+            <h5>Users:</h5>
+            <div *ngFor="let user of rankingResultModel.users">
+                <label>Name:</label>
+                <h6>{{user.name}} {{user.surName}}</h6>
+
+                <label>Position:</label>
+                <h6>{{user.position}}</h6>
+
+                <label>Count talked:</label>
+                <h6>{{user.countTalked}}</h6>
+
+                <label>Photo:</label>
+                <h6>{{user.profilePhoto}}</h6>
+
+            </div>
+        </div>
+    </div>
+
+
+</div>

@@ -1,0 +1,30 @@
+<h5>User Connected: {{userName}}</h5>
+<div class="container">
+    <form autocomplete="off" [formGroup]="formulario" (ngSubmit)="sendMessage()" *ngIf="showUsersFound"> 
+        <label>Users found:</label>
+        <select formControlName="userNameSelected" class="form-control" (change)="selectUser($event)">
+            <option *ngFor="let user of usersBluetooth" [value]="user.userName">
+                {{user.userName}}
+            </option>
+        </select>
+
+        <label>User to send message:</label>
+            <input type="text" formControlName="userNameSelected">
+
+        <label>Message:</label>
+            <input type="text" formControlName="messageToSend">
+
+        <div class="form-group text-center">
+            <button type="submit" class="btn btn-primary w-25">
+                <i class="fa fa-save"></i>
+                Enviar
+            </button>
+        </div>
+    </form>
+
+    <div *ngFor="let message of conversation">
+        <div>
+            <strong>{{message.userName}}:</strong> {{message.message}}
+        </div>
+    </div>
+</div>
