@@ -1,0 +1,54 @@
+<div class="container">
+    <strong>User register</strong>
+    <form autocomplete="off" [formGroup]="formulario" (ngSubmit)="Create()">
+        <div class="form-group">
+            <label>Gender:</label>
+            <select formControlName="gender" class="form-control">
+                <option *ngFor="let gender of genders" [value]="gender.id">{{gender.description}}</option>
+            </select>
+            <small *ngIf="GenderNoValid" class="text-danger">The gender is required</small>
+        </div>
+        <div class="form-group">
+            <label>Email:</label>
+            <input formControlName="email" type="text" />
+            <small *ngIf="EmailNoValid" class="text-danger">Email is required</small>
+        </div>
+        <div class="form-group">
+            <label>Password:</label>
+            <input formControlName="password" type="password" />
+            <small *ngIf="PasswordNoValid" class="text-danger">Password is required</small>
+        </div>
+        <div class="form-group">
+            <label>Name:</label>
+            <input formControlName="name" type="text" />
+            <small *ngIf="NameNoValid" class="text-danger">Name is required</small>
+        </div>
+        <div class="form-group">
+            <label>SurName:</label>
+            <input formControlName="surname" type="text" />
+            <small *ngIf="SurNameNoValid" class="text-danger">SurName is required</small>
+        </div>
+        <div class="form-group">
+            <label>UserName:</label>
+            <input formControlName="username" type="text" />
+            <small *ngIf="UserNameNoValid" class="text-danger">UserName is required</small>
+        </div>
+        <div class="form-group">
+            <label>Birthday:</label>
+            <input formControlName="birthday" type="date" />
+            <small *ngIf="BirthdayNoValid" class="text-danger">Birthday is required</small>
+        </div>
+        <hr />
+        <div class="form-group text-center">
+            <button type="submit" class="btn btn-primary w-25">
+                <i class="fa fa-save"></i>
+                Create
+            </button>
+        </div>
+        <div>
+            <a routerLink="/login" class="txt1">
+                ¿Ya tienes cuenta? / Ingresar
+            </a>
+        </div>
+    </form>
+</div>
