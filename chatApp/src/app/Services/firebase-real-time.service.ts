@@ -1,10 +1,10 @@
 import { Injectable, Injector } from '@angular/core';
 import { Database, ref, push, set, onValue } from '@angular/fire/database';
 import { Observable, Subject } from 'rxjs';
-import { NewMessage } from '../Models/newMessageModel';
 import { ApiResponse } from '../Models/ApiResponseModel';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { ConnectionService } from './connection.service';
+import { Chat, Message } from '../Models/chatModel';
 
 @Injectable({
   providedIn: 'root'
@@ -20,7 +20,7 @@ export class FirebaseRealTimeService {
     private getHeaders(): HttpHeaders {
       return new HttpHeaders({
         'Content-Type': 'application/json',
-        'ngrok-skip-browser-warning': 'true',
+        //'ngrok-skip-browser-warning': 'true',
         "Authorization": "Bearer " + localStorage.getItem('token') || ''
       });
     }
@@ -39,7 +39,7 @@ export class FirebaseRealTimeService {
     withUserNameWhoTalks: string, 
     withMessage: string, 
     withUserNameTalked: string
-  ): Observable<ApiResponse<string>> {
+  ): Observable<ApiResponse<{ chatId: string; message: string }>> {
     
     const message = {
       userNameWhoTalk: withUserNameWhoTalks,
@@ -49,11 +49,17 @@ export class FirebaseRealTimeService {
     };
   
     // Aseguramos que el tipo de respuesta sea `Observable<ApiResponse<string>>`
-    return this._http.post<ApiResponse<string>>(
+    return this._http.post<ApiResponse<{ chatId: string; message: string }>>(
       `${this._conn.urlRealTimeDb}sendMessage`, 
       message, 
       { headers: this.getHeaders() }
     );
+  }
+
+  async sendMessageToChat(chatId: string, message: any): Promise<void> {
+    const messagesRef = ref(this._db, `Chats/${chatId}/Messages`);
+    const newMessageRef = push(messagesRef); // Crea una nueva referencia para el mensaje
+    return set(newMessageRef, message); // Guarda el mensaje en esa referencia
   }
 
 
@@ -74,16 +80,41 @@ export class FirebaseRealTimeService {
   }
 
   getMessages(chatId: string): Observable<any[]> {
-    const messagesRef = ref(this._db, `chats/${chatId}`);
-    const messagesSubject = new Subject<any[]>(); // Para emitir los mensajes como Observable
-
-    onValue(messagesRef, (snapshot) => {
-      const data = snapshot.val();
-      const messages = data ? Object.values(data) : [];
-      messagesSubject.next(messages); // Emitimos la lista de mensajes
+    return new Observable(observer => {
+      const messagesRef = ref(this._db, `Chats/${chatId}/Messages`);
+      
+      onValue(messagesRef, (snapshot) => {
+        const data = snapshot.val();
+        if (data) {
+          const messagesArray = Object.entries(data).map(([id, msg]: any) => ({ id, ...msg }));
+          observer.next(messagesArray);
+        } else {
+          observer.next([]);
+        }
+      }, {
+        onlyOnce: false // Mantener la suscripción en tiempo real
+      });
     });
+  }
 
-    return messagesSubject.asObservable(); // Devolvemos un Observable
+  getChatById(chatid:string): Observable<Chat>
+  {
+    return this._http.get<Chat>(`${this._conn.realTimeUrl}/${chatid}.json`);
+  }
+
+  connectUser(userName: string): Observable<any>
+  {
+    const url = `${this._conn.urlRealTimeDb}connect/${userName}`;
+    const body = { isOnline: true };
+    return this._http.patch(url, body, { headers: this.getHeaders() });
+  }
+
+  disconnectUser(userName: string): Observable<any>
+  {
+    const url = `${this._conn.urlRealTimeDb}disconnect/${userName}`;
+    console.log(url);
+    const body = { isOnline: false };
+    return this._http.patch(url, body, { headers: this.getHeaders() });
   }
 
 }

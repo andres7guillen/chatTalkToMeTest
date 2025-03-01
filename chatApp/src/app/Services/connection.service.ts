@@ -10,5 +10,6 @@ export class ConnectionService {
   public urlGender: string = `${this.urlBase}/api/Gender`;
   public urlWalkingView: string = `${this.urlBase}/api/walkingView/`;
   public urlHub:string = `${this.urlBase}/chatHub`;
+  public realTimeUrl:string = 'https://talktomeapp-4d11c-default-rtdb.firebaseio.com/Chats';
 }
 
