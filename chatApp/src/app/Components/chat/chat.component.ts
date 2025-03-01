@@ -1,4 +1,4 @@
-import { Component, Injector, OnInit } from '@angular/core';
+import { Component, Injector, OnDestroy, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, NgForm, Validators } from '@angular/forms';
 import Swal from 'sweetalert2/dist/sweetalert2.js';
 //import {
@@ -8,40 +8,46 @@ import Swal from 'sweetalert2/dist/sweetalert2.js';
   // HubConnectionState,
   // LogLevel,
 // } from '@microsoft/signalr';
-import { NewMessage } from 'src/app/Models/newMessageModel';
-
 import { UserBluetooth } from 'src/app/Models/userBluetoothModel';
 import { FcmService } from 'src/app/Services/fcm.service';
 import { UserService } from 'src/app/Services/user.service';
 import { FirebaseRealTimeService } from 'src/app/Services/firebase-real-time.service';
+import { Chat, Message } from 'src/app/Models/chatModel';
+import { ActivatedRoute } from '@angular/router';
+import { OnlineStatusService } from 'src/app/Services/online-status-service';
+import { Subscription } from 'rxjs';
+import { child, get, getDatabase, ref } from 'firebase/database';
 
 @Component({
   selector: 'app-chat',
   templateUrl: './chat.component.html',
 })
-export class ChatComponent implements OnInit {
+export class ChatComponent implements OnInit,OnDestroy {
   private _realTimeDbService!: FirebaseRealTimeService;
+  public isOnline: boolean = true;
+  private subscription!: Subscription;
   public showUsersFound: boolean = false;
   public formulario!: FormGroup;
   public userName!: string;
   public messageToSend = '';
   public token!: string;
   public fcmToken!: string;
-  public chatId:string = '';
+  public chatId!: string;
+  public chatData!: Chat;
   //public connectionId = '';
   public userNameSelected = '';
   public count: number = 0;
   public usersBluetooth: UserBluetooth[] = [];
-  public conversation: NewMessage[] = [
-    {
-      message: '',
-      userName: '',
-    },
-  ];
+  //public messages: Message[] = [];
+  public messages: any[] = []; // Aquí guardaremos los mensajes
+  messagesSubscription!: Subscription;
+
   // private _hubConnection: HubConnection;
 
   constructor(
-    private injector: Injector,
+    private _onlineStatusService: OnlineStatusService,
+    private _route: ActivatedRoute,
+    private _injector: Injector,
     private _userService: UserService,
     //private _realTimeDbService : FirebaseRealTimeService,
     private _fb: FormBuilder, 
@@ -83,20 +89,47 @@ export class ChatComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    this._realTimeDbService = this.injector.get(FirebaseRealTimeService);
+    this._realTimeDbService = this._injector.get(FirebaseRealTimeService);
+    this.userName = localStorage.getItem('userName')!.toString();
+    this.connectUser();
+    this.subscription = this._onlineStatusService.isOnline$.subscribe(status => {
+      this.isOnline = status;
+    });
+    this._route.paramMap.subscribe(params => {
+      this.chatId = params.get('chatId') || '';
+      if (this.chatId) {
+        this.loadChat();
+      }
+    });
     this.requestFcmToken();
     this._fcmService.listenForMessages(); // Escuchar mensajes en primer plano
     this.getUsersFoundByBluetooth();
     this.createForm();
-    this.userName = localStorage.getItem('userName')!.toString();
     this.listenForMessages();
   }
 
+  ngOnDestroy() {
+    if (this.messagesSubscription) {
+      this.messagesSubscription.unsubscribe(); // Para evitar fugas de memoria
+    }
+
+    // Evitar fugas de memoria
+    if (this.subscription) {
+      this.subscription.unsubscribe();
+    }
+    this._realTimeDbService.disconnectUser(this.userName).subscribe({
+      next: (response) => console.log("✅ Usuario desconectado:", response),
+      error: (err) => console.error("❌ Error al desconectar usuario:", err)
+  });
+  }
+
   listenForMessages() {
-    const chatId = this.chatId; // Debes obtener el ID del chat dinámicamente
+    const chatId = this.chatId; // Asegúrate de que chatId esté definido
     this._realTimeDbService.getMessages(chatId).subscribe((messages) => {
       console.log("Mensajes recibidos:", messages);
-      this.conversation = messages; // Actualiza la conversación con los mensajes nuevos
+      
+      // Convertir los mensajes en un array antes de asignarlos
+      this.messages = Object.values(messages || {});
     });
   }
 
@@ -111,6 +144,15 @@ export class ChatComponent implements OnInit {
       position: 'top-end',
       background: '#e3f2fd', // Color de fondo azul claro
       color: '#0d47a1' // Color del texto azul oscuro
+    });
+  }
+
+  loadChat(): void {
+    this._realTimeDbService.getChatById(this.chatId).subscribe(chat => {
+      this.chatData = chat;
+  
+      // Convertir los mensajes en un array
+      this.messages = Object.values(chat.messages || {});
     });
   }
 
@@ -218,11 +260,7 @@ export class ChatComponent implements OnInit {
     }
   }
 
-  private newMessage(message: NewMessage) {
-    this.conversation.push(message);
-  }
-
-  sendMessage() {
+  sendMessage() {debugger
     if(this.chatId == null || this.chatId == '')
       {
         this.messageToSend = this.formulario.get('messageToSend')?.value;
@@ -241,31 +279,45 @@ export class ChatComponent implements OnInit {
         this._realTimeDbService.sendMessageToUserApi(this.userName,this.messageToSend,
           this.userNameSelected
         ).subscribe({
-          next: (data) => {
+          next: (data) => {debugger
             if(data)
-              this.chatId = data.data
+              this.chatId = data.data.chatId;
+            this.getMessagesChat(this.chatId);
           },
           error: (error) => {
-            console.log(error);
+            console.log(error.message);
+            alert(error.message);
           }
         })
 
       }else{
         const message = {
-          userNameWhoTalk: this.userName, // Cambiar por el usuario que envía el mensaje
+          userNameWhoTalk: this.userName, 
           message: this.messageToSend,
           userNameTalked: this.userNameSelected,
           timestamp: Date.now()
-        };
-        this._realTimeDbService.sendMessageToUser(this.userName, message)
+      };
+        this._realTimeDbService.sendMessageToChat(this.chatId, message)
       .then(() => {
         this.messageToSend = ''; // Limpiar el campo de texto después de enviar
       })
       .catch((err) => console.error('Error al enviar mensaje:', err));
-      }
-    
+      }    
+  }
 
-    
+  getMessagesChat(chatId:string){debugger
+    this._realTimeDbService.getMessages(chatId).subscribe((messages) => {
+      console.log("📩 Mensajes obtenidos desde Firebase:", messages);
+      this.messages = messages;
+    });
+  }
+
+  connectUser()
+  {
+    this._realTimeDbService.connectUser(this.userName).subscribe({
+      next: (res) => console.log('✅ Respuesta del backend:', res),
+      error: (err) => console.error('❌ Error al conectar:', err)
+    });
   }
 
 }
