@@ -17,6 +17,7 @@ import { ActivatedRoute } from '@angular/router';
 import { OnlineStatusService } from 'src/app/Services/online-status-service';
 import { Subscription } from 'rxjs';
 import { child, get, getDatabase, ref } from 'firebase/database';
+import { ISendMessageRequest } from 'src/app/Models/sendMessageRequestModel';
 
 @Component({
   selector: 'app-chat',
@@ -39,7 +40,7 @@ export class ChatComponent implements OnInit,OnDestroy {
   public count: number = 0;
   public usersBluetooth: UserBluetooth[] = [];
   //public messages: Message[] = [];
-  public messages: any[] = []; // Aquí guardaremos los mensajes
+  public messages: any[] = [];
   messagesSubscription!: Subscription;
 
   // private _hubConnection: HubConnection;
@@ -52,8 +53,7 @@ export class ChatComponent implements OnInit,OnDestroy {
     //private _realTimeDbService : FirebaseRealTimeService,
     private _fb: FormBuilder, 
     //private _urls:ConnectionService,
-    private _fcmService: FcmService,) {
-    
+    private _fcmService: FcmService,) {    
     this.token = localStorage.getItem('token')!.toString();
 
   //   this._hubConnection = new HubConnectionBuilder()
@@ -89,20 +89,14 @@ export class ChatComponent implements OnInit,OnDestroy {
   }
 
   ngOnInit(): void {
+    this.updateServiceWorker();
     this._realTimeDbService = this._injector.get(FirebaseRealTimeService);
     this.userName = localStorage.getItem('userName')!.toString();
     this.connectUser();
     this.subscription = this._onlineStatusService.isOnline$.subscribe(status => {
       this.isOnline = status;
     });
-    this._route.paramMap.subscribe(params => {
-      this.chatId = params.get('chatId') || '';
-      if (this.chatId) {
-        this.loadChat();
-      }
-    });
     this.requestFcmToken();
-    this._fcmService.listenForMessages(); // Escuchar mensajes en primer plano
     this.getUsersFoundByBluetooth();
     this.createForm();
     this.listenForMessages();
@@ -120,6 +114,14 @@ export class ChatComponent implements OnInit,OnDestroy {
     this._realTimeDbService.disconnectUser(this.userName).subscribe({
       next: (response) => console.log("✅ Usuario desconectado:", response),
       error: (err) => console.error("❌ Error al desconectar usuario:", err)
+  });
+  }
+
+  updateServiceWorker(){
+    navigator.serviceWorker.getRegistrations().then((registrations) => {
+      for (let registration of registrations) {
+          registration.update(); // Fuerza la actualización del Service Worker
+      }
   });
   }
 
@@ -174,7 +176,6 @@ export class ChatComponent implements OnInit,OnDestroy {
     this._realTimeDbService.updateFcmTokenIdInUser(this.userName, this.fcmToken).subscribe({
       next: (data) => {
         if (data != undefined) {
-          console.log('CONSOLE LOG UPDATE TOKEN: ' + data)
         }
       },
       error: (error) => {
@@ -189,6 +190,17 @@ export class ChatComponent implements OnInit,OnDestroy {
       userNameSelected: [''],
       messageToSend: [''],
     });
+  }
+
+  deleteMessage(idMessage: string){
+    this._realTimeDbService.deleteMessageApi(this.chatId,idMessage).subscribe({
+      next: (data) => {
+
+      },
+      error: (error) => {
+        
+      }
+    })
   }
 
   // startConnection() {
@@ -260,7 +272,7 @@ export class ChatComponent implements OnInit,OnDestroy {
     }
   }
 
-  sendMessage() {debugger
+  sendMessage() {
     if(this.chatId == null || this.chatId == '')
       {
         this.messageToSend = this.formulario.get('messageToSend')?.value;
@@ -270,42 +282,73 @@ export class ChatComponent implements OnInit,OnDestroy {
           return;
         }
     
-        const message = {
-          userNameWhoTalk: this.userName, // Cambiar por el usuario que envía el mensaje
-          message: this.messageToSend,
-          userNameTalked: this.userNameSelected,
+        const message: ISendMessageRequest = {
+                  userNameWhoTalk: this.userName,        
+                  userNameTalked: this.userNameSelected, 
+                  message: this.messageToSend,           
+                  timestamp: Date.now()
+                };
+        
+                this._realTimeDbService.sendMessageToUserApi(message).subscribe({
+                  next: (data) => {
+                    if(data)
+                      this.chatId = data.data.chatId;
+                  },
+                  error: (error) => {
+                    console.log(error.message);
+                    alert(error.message);
+                  }
+                });
+
+      }
+      // else{
+      //   this.messageToSend = this.formulario.get('messageToSend')?.value;
+      //   this.userNameSelected = this.formulario.get('userNameSelected')?.value;
+      //   if (!this.userName || !this.messageToSend.trim()) {
+      //     alert('Debes ingresar un usuario y un mensaje.');
+      //     return;
+      //   }
+      //   const message = {
+      //     userNameWhoTalk: this.userName, 
+      //     message: this.messageToSend,
+      //     userNameTalked: this.userNameSelected,
+      //     timestamp: Date.now()
+      // };
+      //   this._realTimeDbService.sendMessageToChat(this.chatId, message)
+      // .then(() => {
+      //   this.messageToSend = ''; // Limpiar el campo de texto después de enviar
+      // })
+      // .catch((err) => console.error('Error al enviar mensaje:', err));
+      // }  
+      else{
+        this.messageToSend = this.formulario.get('messageToSend')?.value;
+        this.userNameSelected = this.formulario.get('userNameSelected')?.value;
+        if (!this.userName || !this.messageToSend.trim()) {
+          alert('Debes ingresar un usuario y un mensaje.');
+          return;
+        }
+    
+        const message: ISendMessageRequest = {
+          userNameWhoTalk: this.userName,        
+          userNameTalked: this.userNameSelected, 
+          message: this.messageToSend,           
           timestamp: Date.now()
         };
-        this._realTimeDbService.sendMessageToUserApi(this.userName,this.messageToSend,
-          this.userNameSelected
-        ).subscribe({
-          next: (data) => {debugger
+
+        this._realTimeDbService.sendMessageToUserApi(message).subscribe({
+          next: (data) => {
             if(data)
               this.chatId = data.data.chatId;
-            this.getMessagesChat(this.chatId);
           },
           error: (error) => {
             console.log(error.message);
             alert(error.message);
           }
-        })
-
-      }else{
-        const message = {
-          userNameWhoTalk: this.userName, 
-          message: this.messageToSend,
-          userNameTalked: this.userNameSelected,
-          timestamp: Date.now()
-      };
-        this._realTimeDbService.sendMessageToChat(this.chatId, message)
-      .then(() => {
-        this.messageToSend = ''; // Limpiar el campo de texto después de enviar
-      })
-      .catch((err) => console.error('Error al enviar mensaje:', err));
-      }    
+        });
+      }  
   }
 
-  getMessagesChat(chatId:string){debugger
+  getMessagesChat(chatId:string){
     this._realTimeDbService.getMessages(chatId).subscribe((messages) => {
       console.log("📩 Mensajes obtenidos desde Firebase:", messages);
       this.messages = messages;
@@ -315,7 +358,7 @@ export class ChatComponent implements OnInit,OnDestroy {
   connectUser()
   {
     this._realTimeDbService.connectUser(this.userName).subscribe({
-      next: (res) => console.log('✅ Respuesta del backend:', res),
+      next: (res) => console.log('', res),
       error: (err) => console.error('❌ Error al conectar:', err)
     });
   }

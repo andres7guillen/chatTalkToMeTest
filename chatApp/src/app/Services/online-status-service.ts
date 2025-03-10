@@ -18,11 +18,9 @@ export class OnlineStatusService implements OnDestroy {
 
   private handleVisibilityChange = () => {
     this.disconnect();
-    if (document.hidden) {
-      console.log('❌ Aplicación minimizada o pestaña en segundo plano');
+    if (document.hidden) {      
       this.isOnlineSubject.next(false);
-    } else {
-      console.log('✅ Aplicación activa nuevamente');
+    } else {     
       this.isOnlineSubject.next(true);
       this.reconnect();
     }

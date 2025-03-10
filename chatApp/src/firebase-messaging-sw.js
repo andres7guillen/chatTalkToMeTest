@@ -23,25 +23,51 @@ messaging.onBackgroundMessage((payload) => {
   const notificationOptions = {
     body: body,
     icon: "/firebase-logo.png",
-    data: { chatId }
+    data: { chatId: payload.data?.chatId }
   };
 
   self.registration.showNotification(title, notificationOptions);
 });
 
-self.addEventListener('notificationclick', (event) => {
-  console.log("Notificación clickeada", event.notification.data);
-  event.notification.close(); // Cierra la notificación
-
-  const { chatId } = event.notification.data;
+self.addEventListener('notificationclick', function(event) {
+  event.notification.close();
 
   event.waitUntil(
-    clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
-      console.log("📢 Service Worker ejecutando event.waitUntil");
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clientList => {
       if (clientList.length > 0) {
-        return clientList[0].navigate(`/chat/${chatId}`).then((client) => client.focus());
+        return clientList[0].navigate(`localhost:4200/chats/${event.notification.data.chatId}`).then(client => client.focus());
       }
-      return clients.openWindow(`/chat/${chatId}`);
-    })
-  );
+      return clients.openWindow(`/chats/${event.notification.data.chatId}`);
+    })
+  );
 });
+
+
+
+
+self.addEventListener('install', event => {
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', event => {
+  event.waitUntil(self.clients.claim());
+});
+
+// self.addEventListener('push', function(event) {
+//   console.log("📩 Notificación push recibida:", event.data.json());
+
+//   if (event.data) {
+//       const notificationData = event.data.json();
+//       const chatId = notificationData.data.chatId;
+
+//       const notificationTitle = notificationData.notification.title;
+//       const notificationOptions = {
+//           body: notificationData.notification.body,
+//           data: { chatId },
+//       };
+
+//       event.waitUntil(
+//           self.registration.showNotification(notificationTitle, notificationOptions)
+//       );
+//   }
+// });
