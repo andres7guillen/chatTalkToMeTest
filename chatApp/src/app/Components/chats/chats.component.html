@@ -1,18 +1,6 @@
-<h5>User Connected: {{userName}}</h5>
-<div *ngIf="isOnline; else offlineTemplate">
-    ✅ Estás en línea
-  </div>
-  <ng-template #offlineTemplate>
-    ❌ Estás desconectado
-  </ng-template>
 <div class="container">
     <form autocomplete="off" [formGroup]="formulario" (ngSubmit)="sendMessage()"> 
         <label>Users found:</label>
-        <select formControlName="userNameSelected" class="form-control" (change)="selectUser($event)">
-            <option *ngFor="let user of usersBluetooth" [value]="user.userName">
-                {{user.userName}}
-            </option>
-        </select>
 
         <label>User to send message:</label>
             <input type="text" formControlName="userNameSelected">
@@ -28,6 +16,7 @@
         </div>
     </form>
 
+    <!-- 🔥 SOLO UN BUCLE AQUÍ -->
     <div *ngFor="let message of messages">
         <div>
           <strong>{{ message.UserNameWhoTalk }}:</strong> {{ message.Message }}
@@ -35,5 +24,5 @@
         <div>
             <button (click)="deleteMessage(message.id)">Eliminar</button>
         </div>
-      </div>
+    </div>
 </div>

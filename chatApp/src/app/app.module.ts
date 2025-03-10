@@ -14,6 +14,8 @@ import { provideFirebaseApp, initializeApp } from '@angular/fire/app';
 import { provideDatabase, getDatabase } from '@angular/fire/database';
 import { environment } from '../environments/environment';
 import { HttpClientModule } from '@angular/common/http';
+import { ChatsComponent } from './Components/chats/chats.component';
+import { FcmService } from './Services/fcm.service';
 
 @NgModule({
   declarations: [
@@ -23,7 +25,8 @@ import { HttpClientModule } from '@angular/common/http';
     RegisterComponent,
     NavComponent,
     HomeComponent,
-    RankingComponent
+    RankingComponent,
+    ChatsComponent
   ],
   imports: [
     BrowserModule,
@@ -34,7 +37,7 @@ import { HttpClientModule } from '@angular/common/http';
     provideFirebaseApp(() => initializeApp(environment.firebase)),
     provideDatabase(() => getDatabase())
   ],
-  providers: [],
+  providers: [FcmService],
   bootstrap: [AppComponent]
 })
 export class AppModule { }

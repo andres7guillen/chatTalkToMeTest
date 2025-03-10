@@ -5,6 +5,8 @@ import { ApiResponse } from '../Models/ApiResponseModel';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { ConnectionService } from './connection.service';
 import { Chat, Message } from '../Models/chatModel';
+import { DeleteMessage } from '../Models/deleteMessageModel';
+import { ISendMessageRequest } from '../Models/sendMessageRequestModel';
 
 @Injectable({
   providedIn: 'root'
@@ -35,25 +37,24 @@ export class FirebaseRealTimeService {
   //   return set(messageRef, message);
   // }
 
-  sendMessageToUserApi(
-    withUserNameWhoTalks: string, 
-    withMessage: string, 
-    withUserNameTalked: string
-  ): Observable<ApiResponse<{ chatId: string; message: string }>> {
-    
-    const message = {
-      userNameWhoTalk: withUserNameWhoTalks,
-      message: withMessage,
-      userNameTalked: withUserNameTalked,
-      timestamp: Date.now()
-    };
-  
-    // Aseguramos que el tipo de respuesta sea `Observable<ApiResponse<string>>`
+  sendMessageToUserApi(message: ISendMessageRequest): Observable<ApiResponse<{ chatId: string; message: string }>> {  
     return this._http.post<ApiResponse<{ chatId: string; message: string }>>(
       `${this._conn.urlRealTimeDb}sendMessage`, 
       message, 
       { headers: this.getHeaders() }
     );
+  }
+
+  deleteMessageApi(chatId: string, messageId: string):Observable<any> {
+    const model: DeleteMessage = {
+      chatId: chatId,
+      messageId: messageId
+    };
+  
+    return this._http.delete(`${this._conn.urlRealTimeDb}delete-message`,{
+      body: model,
+      headers: this.getHeaders()
+    });
   }
 
   async sendMessageToChat(chatId: string, message: any): Promise<void> {
@@ -112,7 +113,6 @@ export class FirebaseRealTimeService {
   disconnectUser(userName: string): Observable<any>
   {
     const url = `${this._conn.urlRealTimeDb}disconnect/${userName}`;
-    console.log(url);
     const body = { isOnline: false };
     return this._http.patch(url, body, { headers: this.getHeaders() });
   }

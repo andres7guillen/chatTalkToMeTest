@@ -1,6 +1,8 @@
 import { Injectable } from '@angular/core';
+import { Router } from '@angular/router';
 import { initializeApp } from "firebase/app";
-import { getMessaging, onMessage, getToken } from "firebase/messaging";
+import { getMessaging, onMessage, getToken  } from "firebase/messaging";
+import { BehaviorSubject } from 'rxjs';
 import { environment } from 'src/environments/environment';
 import Swal from 'sweetalert2';
 
@@ -9,12 +11,44 @@ import Swal from 'sweetalert2';
 })
 export class FcmService {
   private messaging = getMessaging(initializeApp(environment.firebase));
+  public notification$ = new BehaviorSubject<any>(null);
 
-  constructor() 
-  { 
+  constructor(private router: Router) {
     const firebaseApp = initializeApp(environment.firebase);
     this.messaging = getMessaging(firebaseApp);
+  
+    // 📌 Recuperar chatId de localStorage si la app se abrió desde una notificación
+    const pendingChatId = localStorage.getItem('pendingChatId');
+    if (pendingChatId) {
+      this.router.navigate([`/chats/${pendingChatId}`]);
+      localStorage.removeItem('pendingChatId'); // Limpiar después de navegar
+    }
+  
+    onMessage(this.messaging, (payload) => {
+      console.log("🔔 Notificación recibida:", payload);
+
+      // this.notification$.next(payload);
+  
+      
+      const chatId = payload?.data?.['chatId'];
+      console.log("📌 chatId recibido:", chatId);
+      // if (document.hidden) {
+      //   const chatId = payload?.data?.['chatId'];
+      //   localStorage.setItem('pendingChatId', chatId || '');
+      //   console.log("📌 Guardando chatId en localStorage:", chatId);
+
+      // }
+
+      if (chatId) {
+        localStorage.setItem('pendingChatId', chatId);
+        console.log("✅ chatId guardado en localStorage:", chatId);
+      } else {
+        console.warn("⚠️ No se guardó chatId en localStorage.");
+      }
+    });
   }
+  
+  
 
   async getFCMToken(): Promise<string | null> {
     try {
@@ -33,7 +67,6 @@ export class FcmService {
   }
 
   async requestPermission(): Promise<boolean> {
-    console.log("Solicitando permiso de notificaciones...");
     
     if (!("Notification" in window)) {
       console.error("Las notificaciones no están soportadas en este navegador.");
@@ -50,22 +83,7 @@ export class FcmService {
     }
   }
 
-  listenForMessages() {
-    onMessage(this.messaging, (payload) => {
-      console.log("Mensaje recibido:", payload);
-
-      Swal.fire({
-        title: payload.notification?.title || 'Nuevo Mensaje',
-        text: payload.notification?.body || 'Tienes un nuevo mensaje',
-        icon: 'info',
-        showConfirmButton: false,
-        timer: 4000,
-        toast: true,
-        position: 'top-end',
-        background: '#ffebee', // Color de fondo rojo claro
-        color: '#b71c1c' // Color del texto rojo oscuro
-      });
-    });
+  getNotificationObservable() {
+    return this.notification$.asObservable();
   }
-
 }
